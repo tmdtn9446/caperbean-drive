@@ -11,12 +11,41 @@ body { font-family: Arial; margin:0; background:#f5f5f5; }
 header { background:#111; color:#fff; padding:20px; }
 .container { max-width:900px; margin:auto; padding:20px; }
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
-input, button, select { padding:10px; margin:5px 0; width:100%; }
-button { background:#111; color:#fff; border:none; cursor:pointer; }
+
+input, button, select {
+  padding:10px;
+  margin:5px 0;
+  width:100%;
+}
+
+button {
+  background:#111;
+  color:#fff;
+  border:none;
+  cursor:pointer;
+}
+
 ul { padding-left:0; list-style:none; }
-li { background:#fafafa; padding:10px; margin-bottom:10px; border-radius:8px; }
-img { max-width:200px; display:block; margin-top:8px; border-radius:6px; }
-.deleteBtn { margin-top:8px; background:red; }
+
+li {
+  background:#fafafa;
+  padding:10px;
+  margin-bottom:10px;
+  border-radius:8px;
+}
+
+img {
+  max-width:200px;
+  display:block;
+  margin-top:8px;
+  border-radius:6px;
+}
+
+.deleteBtn {
+  margin-top:8px;
+  background:red;
+}
+
 #dropZone {
   border:2px dashed #999;
   padding:20px;
@@ -59,12 +88,15 @@ img { max-width:200px; display:block; margin-top:8px; border-radius:6px; }
 
 <h2>Upload</h2>
 
-<div id="dropZone">파일을 여기에 드래그하세요</div>
+<div id="dropZone">파일을 드래그해서 업로드</div>
 
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
 <h2>Files</h2>
+
+<input id="searchInput" placeholder="파일 검색..." oninput="loadFiles()">
+
 <ul id="fileList"></ul>
 
 </div>
@@ -85,8 +117,10 @@ window.addEventListener("load", async () => {
 
   if(data.session){
     currentUser = data.session.user;
+
     document.getElementById("loginBox").style.display = "none";
     document.getElementById("appBox").style.display = "block";
+
     loadProjects();
   }
 });
@@ -107,8 +141,10 @@ async function login(){
   }
 
   currentUser = data.user;
+
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("appBox").style.display = "block";
+
   loadProjects();
 }
 
@@ -194,9 +230,10 @@ function uploadFile(){
   handleUpload(file);
 }
 
-/* LOAD FILES */
+/* LOAD FILES + SEARCH */
 async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
+  const search = document.getElementById("searchInput").value?.toLowerCase() || "";
 
   if(!project) return;
 
@@ -205,10 +242,14 @@ async function loadFiles(){
     .select("*")
     .eq("project", project);
 
+  const filtered = data.filter(f =>
+    f.name.toLowerCase().includes(search)
+  );
+
   const list = document.getElementById("fileList");
   list.innerHTML = "";
 
-  data.forEach(f=>{
+  filtered.forEach(f=>{
     const li = document.createElement("li");
 
     li.innerHTML = `
@@ -223,7 +264,9 @@ async function loadFiles(){
 
 /* DELETE */
 async function deleteFile(id, path){
-  await client.from("files").delete().eq("id", id);
+  await client.from("files")
+    .delete()
+    .eq("id", id);
 
   await client.storage
     .from("caperbean-files")
