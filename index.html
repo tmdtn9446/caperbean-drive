@@ -17,6 +17,13 @@ ul { padding-left:0; list-style:none; }
 li { background:#fafafa; padding:10px; margin-bottom:10px; border-radius:8px; }
 img { max-width:200px; display:block; margin-top:8px; border-radius:6px; }
 .deleteBtn { margin-top:8px; background:red; }
+#dropZone {
+  border:2px dashed #999;
+  padding:20px;
+  text-align:center;
+  margin-bottom:10px;
+  background:white;
+}
 </style>
 </head>
 
@@ -50,7 +57,10 @@ img { max-width:200px; display:block; margin-top:8px; border-radius:6px; }
 <h2>Projects</h2>
 <select id="projectSelect" onchange="loadFiles()"></select>
 
-<h2>Upload File</h2>
+<h2>Upload</h2>
+
+<div id="dropZone">파일을 여기에 드래그하세요</div>
+
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
@@ -69,16 +79,14 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
-/* SESSION CHECK */
+/* SESSION */
 window.addEventListener("load", async () => {
   const { data } = await client.auth.getSession();
 
   if(data.session){
     currentUser = data.session.user;
-
     document.getElementById("loginBox").style.display = "none";
     document.getElementById("appBox").style.display = "block";
-
     loadProjects();
   }
 });
@@ -99,10 +107,8 @@ async function login(){
   }
 
   currentUser = data.user;
-
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("appBox").style.display = "block";
-
   loadProjects();
 }
 
@@ -124,7 +130,7 @@ async function signup(){
   alert("회원가입 성공!");
 }
 
-/* ADD PROJECT */
+/* PROJECT */
 async function addProject(){
   const name = document.getElementById("newProjectName").value;
 
@@ -136,11 +142,9 @@ async function addProject(){
   await client.from("projects").insert([{ name }]);
 
   document.getElementById("newProjectName").value = "";
-
   loadProjects();
 }
 
-/* LOAD PROJECTS */
 async function loadProjects(){
   const { data } = await client.from("projects").select("*");
 
@@ -157,13 +161,12 @@ async function loadProjects(){
   loadFiles();
 }
 
-/* UPLOAD */
-async function uploadFile(){
-  const file = document.getElementById("fileInput").files[0];
+/* UPLOAD CORE */
+async function handleUpload(file){
   const project = document.getElementById("projectSelect").value;
 
   if(!file || !project){
-    alert("파일/프로젝트 선택 필요");
+    alert("프로젝트 선택 필요");
     return;
   }
 
@@ -183,6 +186,12 @@ async function uploadFile(){
   });
 
   loadFiles();
+}
+
+/* BUTTON UPLOAD */
+function uploadFile(){
+  const file = document.getElementById("fileInput").files[0];
+  handleUpload(file);
 }
 
 /* LOAD FILES */
@@ -205,7 +214,6 @@ async function loadFiles(){
     li.innerHTML = `
       <strong>${f.name}</strong><br/>
       <img src="https://otzbtdgiawgvekpnnlgn.supabase.co/storage/v1/object/public/caperbean-files/${f.url}" />
-
       <button class="deleteBtn" onclick="deleteFile('${f.id}', '${f.url}')">삭제</button>
     `;
 
@@ -215,9 +223,7 @@ async function loadFiles(){
 
 /* DELETE */
 async function deleteFile(id, path){
-  await client.from("files")
-    .delete()
-    .eq("id", id);
+  await client.from("files").delete().eq("id", id);
 
   await client.storage
     .from("caperbean-files")
@@ -225,6 +231,26 @@ async function deleteFile(id, path){
 
   loadFiles();
 }
+
+/* DRAG & DROP */
+const dropZone = document.getElementById("dropZone");
+
+dropZone.addEventListener("dragover", (e) => {
+  e.preventDefault();
+  dropZone.style.background = "#eee";
+});
+
+dropZone.addEventListener("dragleave", () => {
+  dropZone.style.background = "white";
+});
+
+dropZone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropZone.style.background = "white";
+
+  const file = e.dataTransfer.files[0];
+  handleUpload(file);
+});
 </script>
 
 </body>
