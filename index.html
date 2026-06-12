@@ -40,6 +40,10 @@ ul { padding-left:20px; }
 <!-- APP -->
 <div class="card" id="appBox" style="display:none;">
 
+<h2>Add Project</h2>
+<input id="newProjectName" placeholder="새 프로젝트 이름">
+<button onclick="addProject()">Create Project</button>
+
 <h2>Projects</h2>
 <select id="projectSelect" onchange="loadFiles()"></select>
 
@@ -60,12 +64,14 @@ const SUPABASE_KEY = "sb_publishable_T8VXv9906iImhpTGUcCDJQ_Stu4axAw";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// LOGIN
+let currentUser = null;
+
+/* LOGIN */
 async function login(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  const { error } = await client.auth.signInWithPassword({
+  const { data, error } = await client.auth.signInWithPassword({
     email,
     password
   });
@@ -75,14 +81,15 @@ async function login(){
     return;
   }
 
+  currentUser = data.user;
+
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("appBox").style.display = "block";
 
   loadProjects();
-  loadFiles();
 }
 
-// SIGN UP
+/* SIGN UP */
 async function signup(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -100,7 +107,29 @@ async function signup(){
   alert("회원가입 성공! 로그인 해줘");
 }
 
-// LOAD PROJECTS
+/* ADD PROJECT */
+async function addProject(){
+  const name = document.getElementById("newProjectName").value;
+
+  if(!name){
+    alert("프로젝트 이름 입력!");
+    return;
+  }
+
+  const { error } = await client
+    .from("projects")
+    .insert([{ name }]);
+
+  if(error){
+    alert("생성 실패");
+    return;
+  }
+
+  document.getElementById("newProjectName").value = "";
+  loadProjects();
+}
+
+/* LOAD PROJECTS */
 async function loadProjects(){
   const { data, error } = await client
     .from("projects")
@@ -117,9 +146,11 @@ async function loadProjects(){
     opt.textContent = p.name;
     select.appendChild(opt);
   });
+
+  loadFiles();
 }
 
-// UPLOAD FILE
+/* UPLOAD FILE */
 async function uploadFile(){
   const file = document.getElementById("fileInput").files[0];
   const project = document.getElementById("projectSelect").value;
@@ -147,9 +178,10 @@ async function uploadFile(){
   loadFiles();
 }
 
-// LOAD FILES
+/* LOAD FILES */
 async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
+
   if(!project) return;
 
   const { data } = await client
