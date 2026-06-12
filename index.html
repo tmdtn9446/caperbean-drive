@@ -13,6 +13,7 @@ header { background:#111; color:#fff; padding:20px; }
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
 input, button { padding:10px; margin:5px 0; width:100%; }
 button { background:#111; color:#fff; border:none; cursor:pointer; }
+ul { padding-left:20px; }
 </style>
 </head>
 
@@ -28,9 +29,12 @@ button { background:#111; color:#fff; border:none; cursor:pointer; }
 <!-- LOGIN -->
 <div class="card" id="loginBox">
 <h2>Login</h2>
+
 <input id="email" placeholder="email">
 <input id="password" type="password" placeholder="password">
+
 <button onclick="login()">Login</button>
+<button onclick="signup()">Sign Up</button>
 </div>
 
 <!-- APP -->
@@ -47,7 +51,7 @@ button { background:#111; color:#fff; border:none; cursor:pointer; }
 </div>
 
 <script>
-const SUPABASE_URL = "https://otzbtdgiawgvekpnnlgn.supa";
+const SUPABASE_URL = "https://otzbtdgiawgvekpnnlgn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_T8VXv9906iImhpTGUcCDJQ_Stu4axAw";
 
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -71,6 +75,24 @@ async function login(){
   document.getElementById("appBox").style.display="block";
 
   loadFiles();
+}
+
+// SIGN UP
+async function signup(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  const { error } = await client.auth.signUp({
+    email,
+    password
+  });
+
+  if(error){
+    alert("회원가입 실패");
+    return;
+  }
+
+  alert("회원가입 성공! 이제 로그인 해줘");
 }
 
 // UPLOAD
@@ -104,23 +126,7 @@ async function loadFiles(){
     list.appendChild(li);
   });
 }
-</scriptasync function signup(){
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  const { error } = await client.auth.signUp({
-    email,
-    password
-  });
-
-  if(error){
-    alert("회원가입 실패");
-    return;
-  }
-
-  alert("회원가입 성공! 이제 로그인 해줘");>
-}
-
+</script>
 
 </body>
 </html>
