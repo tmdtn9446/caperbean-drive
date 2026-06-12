@@ -128,7 +128,7 @@ async function uploadFile(){
     return;
   }
 
-  await client.from("files").insert({
+  await client.from(projects_files").insert({
     name: file.name,
     url: data.path,
     project: project
