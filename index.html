@@ -147,6 +147,46 @@ async function loadFiles(){
     select.appendChild(opt);
   });
 }
+  async function uploadFile(){
+  const file = document.getElementById("fileInput").files[0];
+  const project = document.getElementById("projectSelect").value;
+
+  const { data, error } = await client.storage
+    .from("caperbean-files")
+    .upload(`${project}/${file.name}`, file);
+
+  if(error){
+    alert("업로드 실패");
+    return;
+  }
+
+  // DB 저장
+  await client.from("files").insert({
+    name: file.name,
+    url: data.path,
+    project: project
+  });
+
+  loadFiles();
+}
+  async function loadFiles(){
+  const project = document.getElementById("projectSelect").value;
+
+  const { data } = await client
+    .from("files")
+    .select("*")
+    .eq("project", project);
+
+  const list = document.getElementById("fileList");
+  list.innerHTML = "";
+
+  data.forEach(f=>{
+    const li = document.createElement("li");
+    li.innerText = `${f.name}`;
+    list.appendChild(li);
+  });
+}
+  loadProjects();
 </script>
 
 </body>
