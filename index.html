@@ -2,43 +2,17 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CAPERBEAN DRIVE</title>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-body{
-    font-family: Arial, sans-serif;
-    background:#f5f5f5;
-    margin:0;
-}
-
-header{
-    background:#111;
-    color:white;
-    padding:20px;
-}
-
-.container{
-    max-width:1000px;
-    margin:auto;
-    padding:20px;
-}
-
-.card{
-    background:white;
-    padding:20px;
-    margin-bottom:15px;
-    border-radius:10px;
-}
-
-button{
-    background:#111;
-    color:white;
-    border:none;
-    padding:10px 20px;
-    border-radius:5px;
-    cursor:pointer;
-}
+body { font-family: Arial; margin:0; background:#f5f5f5; }
+header { background:#111; color:#fff; padding:20px; }
+.container { max-width:900px; margin:auto; padding:20px; }
+.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
+input, button { padding:10px; margin:5px 0; width:100%; }
+button { background:#111; color:#fff; border:none; cursor:pointer; }
 </style>
 </head>
 
@@ -51,25 +25,86 @@ button{
 
 <div class="container">
 
-<div class="card">
-<h2>프로젝트</h2>
+<!-- LOGIN -->
+<div class="card" id="loginBox">
+<h2>Login</h2>
+<input id="email" placeholder="email">
+<input id="password" type="password" placeholder="password">
+<button onclick="login()">Login</button>
+</div>
 
-<ul>
-<li>광대들</li>
-<li>덕천면 화보</li>
-<li>르메르</li>
-</ul>
+<!-- APP -->
+<div class="card" id="appBox" style="display:none;">
+<h2>File Upload</h2>
+
+<input type="file" id="fileInput">
+<button onclick="uploadFile()">Upload</button>
+
+<h3>Files</h3>
+<ul id="fileList"></ul>
+</div>
 
 </div>
 
-<div class="card">
-<h2>파일 업로드</h2>
+<script>
+const SUPABASE_URL = "https://otzbtdgiawgvekpnnlgn.supa";
+const SUPABASE_KEY = "sb_publishable_T8VXv9906iImhpTGUcCDJQ_Stu4axAw";
 
-<button>업로드 준비중</button>
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-</div>
+// LOGIN
+async function login(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
 
-</div>
+  const { error } = await client.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error){
+    alert("로그인 실패");
+    return;
+  }
+
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("appBox").style.display="block";
+
+  loadFiles();
+}
+
+// UPLOAD
+async function uploadFile(){
+  const file = document.getElementById("fileInput").files[0];
+
+  const { error } = await client.storage
+    .from("caperbean-files")
+    .upload(file.name, file);
+
+  if(error){
+    alert("업로드 실패");
+    return;
+  }
+
+  loadFiles();
+}
+
+// LIST FILES
+async function loadFiles(){
+  const { data } = await client.storage
+    .from("caperbean-files")
+    .list();
+
+  const list = document.getElementById("fileList");
+  list.innerHTML = "";
+
+  data.forEach(f=>{
+    const li = document.createElement("li");
+    li.innerText = f.name;
+    list.appendChild(li);
+  });
+}
+</script>
 
 </body>
 </html>
