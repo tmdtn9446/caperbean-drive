@@ -13,7 +13,10 @@ header { background:#111; color:#fff; padding:20px; }
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
 input, button, select { padding:10px; margin:5px 0; width:100%; }
 button { background:#111; color:#fff; border:none; cursor:pointer; }
-ul { padding-left:20px; }
+ul { padding-left:0; list-style:none; }
+li { background:#fafafa; padding:10px; margin-bottom:10px; border-radius:8px; }
+img { max-width:200px; display:block; margin-top:8px; border-radius:6px; }
+.deleteBtn { margin-top:8px; background:red; }
 </style>
 </head>
 
@@ -66,7 +69,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
-/* 🔥 SESSION CHECK (핵심 추가) */
+/* SESSION CHECK */
 window.addEventListener("load", async () => {
   const { data } = await client.auth.getSession();
 
@@ -103,7 +106,7 @@ async function login(){
   loadProjects();
 }
 
-/* SIGN UP */
+/* SIGNUP */
 async function signup(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -118,7 +121,7 @@ async function signup(){
     return;
   }
 
-  alert("회원가입 성공! 로그인 해줘");
+  alert("회원가입 성공!");
 }
 
 /* ADD PROJECT */
@@ -126,18 +129,11 @@ async function addProject(){
   const name = document.getElementById("newProjectName").value;
 
   if(!name){
-    alert("프로젝트 이름 입력!");
+    alert("이름 입력!");
     return;
   }
 
-  const { error } = await client
-    .from("projects")
-    .insert([{ name }]);
-
-  if(error){
-    alert("생성 실패");
-    return;
-  }
+  await client.from("projects").insert([{ name }]);
 
   document.getElementById("newProjectName").value = "";
 
@@ -146,11 +142,7 @@ async function addProject(){
 
 /* LOAD PROJECTS */
 async function loadProjects(){
-  const { data, error } = await client
-    .from("projects")
-    .select("*");
-
-  if(error) return;
+  const { data } = await client.from("projects").select("*");
 
   const select = document.getElementById("projectSelect");
   select.innerHTML = "";
@@ -165,13 +157,13 @@ async function loadProjects(){
   loadFiles();
 }
 
-/* UPLOAD FILE */
+/* UPLOAD */
 async function uploadFile(){
   const file = document.getElementById("fileInput").files[0];
   const project = document.getElementById("projectSelect").value;
 
   if(!file || !project){
-    alert("파일 또는 프로젝트 선택 필요");
+    alert("파일/프로젝트 선택 필요");
     return;
   }
 
@@ -209,9 +201,29 @@ async function loadFiles(){
 
   data.forEach(f=>{
     const li = document.createElement("li");
-    li.innerText = f.name;
+
+    li.innerHTML = `
+      <strong>${f.name}</strong><br/>
+      <img src="https://otzbtdgiawgvekpnnlgn.supabase.co/storage/v1/object/public/caperbean-files/${f.url}" />
+
+      <button class="deleteBtn" onclick="deleteFile('${f.id}', '${f.url}')">삭제</button>
+    `;
+
     list.appendChild(li);
   });
+}
+
+/* DELETE */
+async function deleteFile(id, path){
+  await client.from("files")
+    .delete()
+    .eq("id", id);
+
+  await client.storage
+    .from("caperbean-files")
+    .remove([path]);
+
+  loadFiles();
 }
 </script>
 
