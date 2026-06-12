@@ -132,6 +132,21 @@ async function loadFiles(){
 
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
+  async function loadProjects(){
+  const { data } = await client
+    .from("projects")
+    .select("*");
+
+  const select = document.getElementById("projectSelect");
+  select.innerHTML = "";
+
+  data.forEach(p=>{
+    const opt = document.createElement("option");
+    opt.value = p.name;
+    opt.textContent = p.name;
+    select.appendChild(opt);
+  });
+}
 </script>
 
 </body>
