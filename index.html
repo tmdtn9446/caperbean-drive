@@ -101,7 +101,7 @@ async function signup(){
 
 // LOAD PROJECTS
 async function loadProjects(){
-  const { data } = await client.from("projects").select("*");
+  const { data } = await client.from("projects_files").select("*");
 
   const select = document.getElementById("projectSelect");
   select.innerHTML = "";
@@ -142,7 +142,7 @@ async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
 
   const { data } = await client
-    .from("files")
+    .from("projects_files")
     .select("*")
     .eq("project", project);
 
