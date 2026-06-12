@@ -66,6 +66,20 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let currentUser = null;
 
+/* 🔥 SESSION CHECK (핵심 추가) */
+window.addEventListener("load", async () => {
+  const { data } = await client.auth.getSession();
+
+  if(data.session){
+    currentUser = data.session.user;
+
+    document.getElementById("loginBox").style.display = "none";
+    document.getElementById("appBox").style.display = "block";
+
+    loadProjects();
+  }
+});
+
 /* LOGIN */
 async function login(){
   const email = document.getElementById("email").value;
@@ -126,6 +140,7 @@ async function addProject(){
   }
 
   document.getElementById("newProjectName").value = "";
+
   loadProjects();
 }
 
