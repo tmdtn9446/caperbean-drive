@@ -11,9 +11,8 @@ body { font-family: Arial; margin:0; background:#f5f5f5; }
 header { background:#111; color:#fff; padding:20px; }
 .container { max-width:900px; margin:auto; padding:20px; }
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
-input, button { padding:10px; margin:5px 0; width:100%; }
+input, button, select { padding:10px; margin:5px 0; width:100%; }
 button { background:#111; color:#fff; border:none; cursor:pointer; }
-ul { padding-left:20px; }
 </style>
 </head>
 
@@ -39,13 +38,17 @@ ul { padding-left:20px; }
 
 <!-- APP -->
 <div class="card" id="appBox" style="display:none;">
-<h2>File Upload</h2>
 
+<h2>Project</h2>
+<select id="projectSelect"></select>
+
+<h2>File Upload</h2>
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
 <h3>Files</h3>
 <ul id="fileList"></ul>
+
 </div>
 
 </div>
@@ -74,10 +77,11 @@ async function login(){
   document.getElementById("loginBox").style.display="none";
   document.getElementById("appBox").style.display="block";
 
+  loadProjects();
   loadFiles();
 }
 
-// SIGN UP
+// SIGNUP
 async function signup(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -92,50 +96,12 @@ async function signup(){
     return;
   }
 
-  alert("회원가입 성공! 이제 로그인 해줘");
+  alert("회원가입 성공! 로그인 해줘");
 }
 
-// UPLOAD
-async function uploadFile(){
-  const file = document.getElementById("fileInput").files[0];
-
-  const { error } = await client.storage
-    .from("caperbean-files")
-    .upload(file.name, file);
-
-  if(error){
-    alert("업로드 실패");
-    return;
-  }
-
-  loadFiles();
-}
-
-// LIST FILES
-async function loadFiles(){
-  const { data } = await client.storage
-    .from("caperbean-files")
-    .list();
-
-  const list = document.getElementById("fileList");
-  list.innerHTML = "";
-
-  data.forEach(f=>{
-    const li = document.createElement("li");
-    li.innerText = f.name;
-    list.appendChild(li);
-  });
-}
-  <h2>Project</h2>
-
-<select id="projectSelect"></select>
-
-<input type="file" id="fileInput">
-<button onclick="uploadFile()">Upload</button>
-  async function loadProjects(){
-  const { data } = await client
-    .from("projects")
-    .select("*");
+// LOAD PROJECTS
+async function loadProjects(){
+  const { data } = await client.from("projects").select("*");
 
   const select = document.getElementById("projectSelect");
   select.innerHTML = "";
@@ -147,7 +113,9 @@ async function loadFiles(){
     select.appendChild(opt);
   });
 }
-  async function uploadFile(){
+
+// UPLOAD
+async function uploadFile(){
   const file = document.getElementById("fileInput").files[0];
   const project = document.getElementById("projectSelect").value;
 
@@ -160,7 +128,6 @@ async function loadFiles(){
     return;
   }
 
-  // DB 저장
   await client.from("files").insert({
     name: file.name,
     url: data.path,
@@ -169,7 +136,9 @@ async function loadFiles(){
 
   loadFiles();
 }
-  async function loadFiles(){
+
+// LOAD FILES
+async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
 
   const { data } = await client
@@ -182,7 +151,7 @@ async function loadFiles(){
 
   data.forEach(f=>{
     const li = document.createElement("li");
-    li.innerText = `${f.name}`;
+    li.innerText = f.name;
     list.appendChild(li);
   });
 }
