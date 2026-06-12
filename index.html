@@ -13,6 +13,7 @@ header { background:#111; color:#fff; padding:20px; }
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
 input, button, select { padding:10px; margin:5px 0; width:100%; }
 button { background:#111; color:#fff; border:none; cursor:pointer; }
+ul { padding-left:20px; }
 </style>
 </head>
 
@@ -39,14 +40,14 @@ button { background:#111; color:#fff; border:none; cursor:pointer; }
 <!-- APP -->
 <div class="card" id="appBox" style="display:none;">
 
-<h2>Project</h2>
-<select id="projectSelect"></select>
+<h2>Projects</h2>
+<select id="projectSelect" onchange="loadFiles()"></select>
 
-<h2>File Upload</h2>
+<h2>Upload File</h2>
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
-<h3>Files</h3>
+<h2>Files</h2>
 <ul id="fileList"></ul>
 
 </div>
@@ -74,14 +75,14 @@ async function login(){
     return;
   }
 
-  document.getElementById("loginBox").style.display="none";
-  document.getElementById("appBox").style.display="block";
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("appBox").style.display = "block";
 
   loadProjects();
   loadFiles();
 }
 
-// SIGNUP
+// SIGN UP
 async function signup(){
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -101,7 +102,11 @@ async function signup(){
 
 // LOAD PROJECTS
 async function loadProjects(){
-  const { data } = await client.from("projects_files").select("*");
+  const { data, error } = await client
+    .from("projects")
+    .select("*");
+
+  if(error) return;
 
   const select = document.getElementById("projectSelect");
   select.innerHTML = "";
@@ -114,10 +119,15 @@ async function loadProjects(){
   });
 }
 
-// UPLOAD
+// UPLOAD FILE
 async function uploadFile(){
   const file = document.getElementById("fileInput").files[0];
   const project = document.getElementById("projectSelect").value;
+
+  if(!file || !project){
+    alert("파일 또는 프로젝트 선택 필요");
+    return;
+  }
 
   const { data, error } = await client.storage
     .from("caperbean-files")
@@ -128,7 +138,7 @@ async function uploadFile(){
     return;
   }
 
-  await client.from(projects_files").insert({
+  await client.from("files").insert({
     name: file.name,
     url: data.path,
     project: project
@@ -140,9 +150,10 @@ async function uploadFile(){
 // LOAD FILES
 async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
+  if(!project) return;
 
   const { data } = await client
-    .from("projects_files")
+    .from("files")
     .select("*")
     .eq("project", project);
 
