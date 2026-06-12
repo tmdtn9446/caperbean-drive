@@ -35,9 +35,9 @@ button {
 }
 
 #fileList {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:10px;
   padding:0;
   list-style:none;
 }
@@ -49,15 +49,28 @@ button {
   box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
-.fileCard img {
+.fileCard img, video {
   max-width:100%;
   border-radius:6px;
   margin-top:5px;
 }
 
-.deleteBtn {
-  margin-top:8px;
-  background:red;
+.deleteBtn { background:red; margin-top:8px; }
+.shareBtn { background:#444; margin-top:5px; }
+
+#modal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.85);
+  justify-content:center;
+  align-items:center;
+}
+
+#modalContent {
+  max-width:80%;
+  max-height:80%;
 }
 </style>
 </head>
@@ -66,7 +79,7 @@ button {
 
 <header>
 <h1>CAPERBEAN DRIVE</h1>
-<p>Team Archive System</p>
+<p>Team SaaS System</p>
 </header>
 
 <div class="container">
@@ -74,10 +87,8 @@ button {
 <!-- LOGIN -->
 <div class="card" id="loginBox">
 <h2>Login</h2>
-
 <input id="email" placeholder="email">
 <input id="password" type="password" placeholder="password">
-
 <button onclick="login()">Login</button>
 <button onclick="signup()">Sign Up</button>
 </div>
@@ -85,28 +96,39 @@ button {
 <!-- APP -->
 <div class="card" id="appBox" style="display:none;">
 
-<h2>Add Project</h2>
-<input id="newProjectName" placeholder="새 프로젝트 이름">
-<button onclick="addProject()">Create Project</button>
+<h2>Project (Folder)</h2>
+<input id="newProjectName" placeholder="새 폴더 이름">
+<button onclick="addProject()">Create Folder</button>
 
-<h2>Projects</h2>
 <select id="projectSelect" onchange="loadFiles()"></select>
 
 <h2>Upload</h2>
-
-<div id="dropZone">파일을 드래그해서 업로드</div>
+<div id="dropZone">파일 드래그 업로드</div>
 
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
-<h2>Search</h2>
+<h2>Search + Sort</h2>
 <input id="searchInput" placeholder="파일 검색..." oninput="loadFiles()">
+
+<select id="sortSelect" onchange="loadFiles()">
+  <option value="new">최신순</option>
+  <option value="old">오래된순</option>
+</select>
+
+<h2>Share Link</h2>
+<input id="shareLink" placeholder="선택 파일 공유 링크">
 
 <h2>Files</h2>
 <div id="fileList"></div>
 
 </div>
 
+</div>
+
+<!-- MODAL -->
+<div id="modal">
+  <img id="modalContent">
 </div>
 
 <script>
@@ -139,52 +161,43 @@ async function login(){
     password
   });
 
-  if(error){
-    alert("로그인 실패");
-    return;
-  }
+  if(error) return alert("로그인 실패");
 
   currentUser = data.user;
-
   document.getElementById("loginBox").style.display = "none";
   document.getElementById("appBox").style.display = "block";
-
   loadProjects();
 }
 
-/* SIGNUP */
+/* SIGNUP (5명 제한용 기초) */
 async function signup(){
+  const { data } = await client.from("files").select("*");
+
+  if(data && data.length > 5){
+    return alert("팀 최대 5명 제한");
+  }
+
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
 
-  const { error } = await client.auth.signUp({
-    email,
-    password
-  });
+  const { error } = await client.auth.signUp({ email, password });
 
-  if(error){
-    alert("회원가입 실패");
-    return;
-  }
+  if(error) return alert("회원가입 실패");
 
   alert("회원가입 성공!");
 }
 
-/* PROJECT */
+/* PROJECT = FOLDER */
 async function addProject(){
   const name = document.getElementById("newProjectName").value;
-
-  if(!name){
-    alert("이름 입력!");
-    return;
-  }
+  if(!name) return;
 
   await client.from("projects").insert([{ name }]);
 
-  document.getElementById("newProjectName").value = "";
   loadProjects();
 }
 
+/* LOAD FOLDERS */
 async function loadProjects(){
   const { data } = await client.from("projects").select("*");
 
@@ -194,57 +207,58 @@ async function loadProjects(){
   data.forEach(p=>{
     const opt = document.createElement("option");
     opt.value = p.name;
-    opt.textContent = p.name;
+    opt.textContent = "📁 " + p.name;
     select.appendChild(opt);
   });
 
   loadFiles();
 }
 
-/* UPLOAD CORE */
+/* UPLOAD */
 async function handleUpload(file){
   const project = document.getElementById("projectSelect").value;
-
-  if(!file || !project){
-    alert("프로젝트 선택 필요");
-    return;
-  }
+  if(!file || !project) return;
 
   const { data, error } = await client.storage
     .from("caperbean-files")
     .upload(`${project}/${file.name}`, file);
 
-  if(error){
-    alert("업로드 실패");
-    return;
-  }
+  if(error) return alert("업로드 실패");
 
   await client.from("files").insert({
     name: file.name,
     url: data.path,
-    project: project
+    project: project,
+    created_at: new Date()
   });
 
   loadFiles();
 }
 
-/* BUTTON UPLOAD */
 function uploadFile(){
   const file = document.getElementById("fileInput").files[0];
   handleUpload(file);
 }
 
-/* LOAD FILES */
+/* LOAD FILES + SEARCH + SORT */
 async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
   const search = document.getElementById("searchInput").value?.toLowerCase() || "";
+  const sort = document.getElementById("sortSelect").value;
 
   if(!project) return;
 
-  const { data } = await client
+  let { data } = await client
     .from("files")
     .select("*")
     .eq("project", project);
+
+  // SORT
+  data.sort((a,b)=>{
+    return sort === "new"
+      ? new Date(b.created_at) - new Date(a.created_at)
+      : new Date(a.created_at) - new Date(b.created_at);
+  });
 
   const filtered = data.filter(f =>
     f.name.toLowerCase().includes(search)
@@ -254,12 +268,23 @@ async function loadFiles(){
   list.innerHTML = "";
 
   filtered.forEach(f=>{
+    const url = `https://otzbtdgiawgvekpnnlgn.supabase.co/storage/v1/object/public/caperbean-files/${f.url}`;
+
+    const isVideo = f.name.includes(".mp4") || f.name.includes(".mov");
+
     const div = document.createElement("div");
     div.className = "fileCard";
 
     div.innerHTML = `
-      <strong>${f.name}</strong>
-      <img src="https://otzbtdgiawgvekpnnlgn.supabase.co/storage/v1/object/public/caperbean-files/${f.url}" />
+      <strong>${f.name}</strong><br/>
+
+      ${
+        isVideo
+        ? `<video src="${url}" controls></video>`
+        : `<img src="${url}" onclick="openModal('${url}')" />`
+      }
+
+      <button class="shareBtn" onclick="shareFile('${url}')">공유</button>
       <button class="deleteBtn" onclick="deleteFile('${f.id}', '${f.url}')">삭제</button>
     `;
 
@@ -270,32 +295,44 @@ async function loadFiles(){
 /* DELETE */
 async function deleteFile(id, path){
   await client.from("files").delete().eq("id", id);
-
-  await client.storage
-    .from("caperbean-files")
-    .remove([path]);
-
+  await client.storage.from("caperbean-files").remove([path]);
   loadFiles();
 }
 
-/* DRAG & DROP */
+/* SHARE */
+function shareFile(url){
+  const input = document.getElementById("shareLink");
+  input.value = url;
+  navigator.clipboard.writeText(url);
+  alert("링크 복사됨");
+}
+
+/* MODAL */
+function openModal(src){
+  document.getElementById("modal").style.display = "flex";
+  document.getElementById("modalContent").src = src;
+}
+
+document.getElementById("modal").addEventListener("click", () => {
+  document.getElementById("modal").style.display = "none";
+});
+
+/* DRAG */
 const dropZone = document.getElementById("dropZone");
 
-dropZone.addEventListener("dragover", (e) => {
+dropZone.addEventListener("dragover", e=>{
   e.preventDefault();
   dropZone.style.background = "#eee";
 });
 
-dropZone.addEventListener("dragleave", () => {
+dropZone.addEventListener("dragleave", ()=>{
   dropZone.style.background = "white";
 });
 
-dropZone.addEventListener("drop", (e) => {
+dropZone.addEventListener("drop", e=>{
   e.preventDefault();
   dropZone.style.background = "white";
-
-  const file = e.dataTransfer.files[0];
-  handleUpload(file);
+  handleUpload(e.dataTransfer.files[0]);
 });
 </script>
 
