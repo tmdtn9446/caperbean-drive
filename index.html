@@ -7,16 +7,17 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
-body { font-family: Arial; margin:0; background:#f5f5f5; }
+body { margin:0; font-family:Arial; background:#f4f4f4; }
 header { background:#111; color:#fff; padding:20px; }
-.container { max-width:900px; margin:auto; padding:20px; }
 
-.card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
+.container { max-width:1100px; margin:auto; padding:20px; }
+
+.card { background:#fff; padding:15px; border-radius:10px; margin-bottom:15px; }
 
 input, button, select {
+  width:100%;
   padding:10px;
   margin:5px 0;
-  width:100%;
 }
 
 button {
@@ -26,51 +27,53 @@ button {
   cursor:pointer;
 }
 
-#dropZone {
-  border:2px dashed #999;
-  padding:20px;
-  text-align:center;
-  margin-bottom:10px;
-  background:white;
+.layout {
+  display:flex;
+  gap:10px;
+}
+
+.sidebar {
+  width:250px;
+  background:#fff;
+  padding:10px;
+  border-radius:10px;
+  height:80vh;
+  overflow:auto;
+}
+
+.main {
+  flex:1;
+}
+
+.folder {
+  cursor:pointer;
+  padding:5px;
+}
+
+.folder:hover {
+  background:#eee;
 }
 
 #fileList {
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
   gap:10px;
-  padding:0;
-  list-style:none;
 }
 
 .fileCard {
-  background:white;
+  background:#fff;
   padding:10px;
   border-radius:10px;
-  box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 
 .fileCard img, video {
-  max-width:100%;
+  width:100%;
   border-radius:6px;
+}
+
+.smallBtn {
   margin-top:5px;
-}
-
-.deleteBtn { background:red; margin-top:8px; }
-.shareBtn { background:#444; margin-top:5px; }
-
-#modal {
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:rgba(0,0,0,0.85);
-  justify-content:center;
-  align-items:center;
-}
-
-#modalContent {
-  max-width:80%;
-  max-height:80%;
+  font-size:12px;
 }
 </style>
 </head>
@@ -79,7 +82,6 @@ button {
 
 <header>
 <h1>CAPERBEAN DRIVE</h1>
-<p>Team SaaS System</p>
 </header>
 
 <div class="container">
@@ -94,246 +96,223 @@ button {
 </div>
 
 <!-- APP -->
-<div class="card" id="appBox" style="display:none;">
+<div class="layout" id="appBox" style="display:none;">
 
-<h2>Project (Folder)</h2>
-<input id="newProjectName" placeholder="새 폴더 이름">
-<button onclick="addProject()">Create Folder</button>
+<!-- SIDEBAR -->
+<div class="sidebar">
+<h3>📁 Folders</h3>
+<div id="folderTree"></div>
 
-<select id="projectSelect" onchange="loadFiles()"></select>
+<button onclick="createFolder()">+ Folder</button>
+<button onclick="goBack()">⬅ Back</button>
+</div>
 
-<h2>Upload</h2>
-<div id="dropZone">파일 드래그 업로드</div>
+<!-- MAIN -->
+<div class="main">
 
+<h3>Upload</h3>
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
-<h2>Search + Sort</h2>
-<input id="searchInput" placeholder="파일 검색..." oninput="loadFiles()">
+<h3>Search</h3>
+<input id="searchInput" oninput="loadFiles()" placeholder="검색">
 
+<h3>Sort</h3>
 <select id="sortSelect" onchange="loadFiles()">
   <option value="new">최신순</option>
   <option value="old">오래된순</option>
 </select>
 
-<h2>Share Link</h2>
-<input id="shareLink" placeholder="선택 파일 공유 링크">
-
-<h2>Files</h2>
 <div id="fileList"></div>
 
 </div>
 
 </div>
 
+</div>
+
 <!-- MODAL -->
-<div id="modal">
-  <img id="modalContent">
+<div id="modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);justify-content:center;align-items:center;">
+<img id="modalImg" style="max-width:80%;max-height:80%;">
 </div>
 
 <script>
-const SUPABASE_URL = "https://otzbtdgiawgvekpnnlgn.supabase.co";
-const SUPABASE_KEY = "sb_publishable_T8VXv9906iImhpTGUcCDJQ_Stu4axAw";
-
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const client = supabase.createClient(
+  "https://otzbtdgiawgvekpnnlgn.supabase.co",
+  "sb_publishable_T8VXv9906iImhpTGUcCDJQ_Stu4axAw"
+);
 
 let currentUser = null;
+let currentFolder = null;
+let stack = [];
 
 /* SESSION */
-window.addEventListener("load", async () => {
+window.onload = async () => {
   const { data } = await client.auth.getSession();
-
   if(data.session){
     currentUser = data.session.user;
-    document.getElementById("loginBox").style.display = "none";
-    document.getElementById("appBox").style.display = "block";
-    loadProjects();
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("appBox").style.display="flex";
+    loadFolders();
+    loadFiles();
   }
-});
+};
 
 /* LOGIN */
 async function login(){
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
   const { data, error } = await client.auth.signInWithPassword({
-    email,
-    password
+    email:email.value,
+    password:password.value
   });
 
   if(error) return alert("로그인 실패");
 
   currentUser = data.user;
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("appBox").style.display = "block";
-  loadProjects();
+  loginBox.style.display="none";
+  appBox.style.display="flex";
+
+  loadFolders();
 }
 
-/* SIGNUP (5명 제한용 기초) */
+/* SIGNUP (5명 제한) */
 async function signup(){
-  const { data } = await client.from("files").select("*");
+  const { data: users } = await client.from("team").select("*");
 
-  if(data && data.length > 5){
-    return alert("팀 최대 5명 제한");
+  if(users.length >= 5){
+    return alert("팀 최대 5명");
   }
 
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+  const { error } = await client.auth.signUp({
+    email:email.value,
+    password:password.value
+  });
 
-  const { error } = await client.auth.signUp({ email, password });
+  if(error) return alert("실패");
 
-  if(error) return alert("회원가입 실패");
-
-  alert("회원가입 성공!");
+  alert("가입 성공");
 }
 
-/* PROJECT = FOLDER */
-async function addProject(){
-  const name = document.getElementById("newProjectName").value;
+/* FOLDER */
+async function loadFolders(parent=null){
+  const { data } = await client
+    .from("projects")
+    .select("*")
+    .eq("parent_id", parent);
+
+  const tree = document.getElementById("folderTree");
+  tree.innerHTML = "";
+
+  data.forEach(f=>{
+    const div = document.createElement("div");
+    div.className="folder";
+    div.innerHTML = "📁 "+f.name;
+    div.onclick = () => openFolder(f.id);
+    tree.appendChild(div);
+  });
+}
+
+function openFolder(id){
+  stack.push(currentFolder);
+  currentFolder = id;
+  loadFolders(id);
+  loadFiles();
+}
+
+function goBack(){
+  currentFolder = stack.pop() || null;
+  loadFolders(currentFolder);
+  loadFiles();
+}
+
+async function createFolder(){
+  const name = prompt("폴더 이름");
   if(!name) return;
 
-  await client.from("projects").insert([{ name }]);
-
-  loadProjects();
-}
-
-/* LOAD FOLDERS */
-async function loadProjects(){
-  const { data } = await client.from("projects").select("*");
-
-  const select = document.getElementById("projectSelect");
-  select.innerHTML = "";
-
-  data.forEach(p=>{
-    const opt = document.createElement("option");
-    opt.value = p.name;
-    opt.textContent = "📁 " + p.name;
-    select.appendChild(opt);
+  await client.from("projects").insert({
+    name,
+    parent_id: currentFolder,
+    owner_id: currentUser.id
   });
 
-  loadFiles();
+  loadFolders(currentFolder);
 }
 
-/* UPLOAD */
-async function handleUpload(file){
-  const project = document.getElementById("projectSelect").value;
-  if(!file || !project) return;
+/* FILE UPLOAD */
+async function uploadFile(){
+  const file = fileInput.files[0];
+  if(!file) return;
 
-  const { data, error } = await client.storage
+  const { data } = await client.storage
     .from("caperbean-files")
-    .upload(`${project}/${file.name}`, file);
-
-  if(error) return alert("업로드 실패");
+    .upload(`${currentFolder || "root"}/${file.name}`, file);
 
   await client.from("files").insert({
-    name: file.name,
-    url: data.path,
-    project: project,
-    created_at: new Date()
+    name:file.name,
+    url:data.path,
+    project_id:currentFolder,
+    created_at:new Date()
   });
 
   loadFiles();
 }
 
-function uploadFile(){
-  const file = document.getElementById("fileInput").files[0];
-  handleUpload(file);
-}
-
-/* LOAD FILES + SEARCH + SORT */
+/* FILE LOAD */
 async function loadFiles(){
-  const project = document.getElementById("projectSelect").value;
-  const search = document.getElementById("searchInput").value?.toLowerCase() || "";
-  const sort = document.getElementById("sortSelect").value;
-
-  if(!project) return;
-
   let { data } = await client
     .from("files")
     .select("*")
-    .eq("project", project);
+    .eq("project_id", currentFolder);
 
-  // SORT
+  const search = searchInput.value?.toLowerCase() || "";
+  const sort = sortSelect.value;
+
+  data = data.filter(f=>f.name.toLowerCase().includes(search));
+
   data.sort((a,b)=>{
-    return sort === "new"
-      ? new Date(b.created_at) - new Date(a.created_at)
-      : new Date(a.created_at) - new Date(b.created_at);
+    return sort==="new"
+    ? new Date(b.created_at)-new Date(a.created_at)
+    : new Date(a.created_at)-new Date(b.created_at);
   });
 
-  const filtered = data.filter(f =>
-    f.name.toLowerCase().includes(search)
-  );
+  fileList.innerHTML="";
 
-  const list = document.getElementById("fileList");
-  list.innerHTML = "";
-
-  filtered.forEach(f=>{
+  data.forEach(f=>{
     const url = `https://otzbtdgiawgvekpnnlgn.supabase.co/storage/v1/object/public/caperbean-files/${f.url}`;
 
-    const isVideo = f.name.includes(".mp4") || f.name.includes(".mov");
+    const isVideo = f.name.match(/\.(mp4|mov|webm)$/);
 
     const div = document.createElement("div");
-    div.className = "fileCard";
+    div.className="fileCard";
 
     div.innerHTML = `
-      <strong>${f.name}</strong><br/>
-
+      <strong>${f.name}</strong>
       ${
         isVideo
         ? `<video src="${url}" controls></video>`
-        : `<img src="${url}" onclick="openModal('${url}')" />`
+        : `<img src="${url}" onclick="openModal('${url}')">`
       }
-
-      <button class="shareBtn" onclick="shareFile('${url}')">공유</button>
-      <button class="deleteBtn" onclick="deleteFile('${f.id}', '${f.url}')">삭제</button>
+      <button class="smallBtn" onclick="downloadFile('${url}')">⬇</button>
     `;
 
-    list.appendChild(div);
+    fileList.appendChild(div);
   });
 }
 
-/* DELETE */
-async function deleteFile(id, path){
-  await client.from("files").delete().eq("id", id);
-  await client.storage.from("caperbean-files").remove([path]);
-  loadFiles();
-}
-
-/* SHARE */
-function shareFile(url){
-  const input = document.getElementById("shareLink");
-  input.value = url;
-  navigator.clipboard.writeText(url);
-  alert("링크 복사됨");
+/* DOWNLOAD */
+function downloadFile(url){
+  const a = document.createElement("a");
+  a.href=url;
+  a.download="";
+  a.click();
 }
 
 /* MODAL */
 function openModal(src){
-  document.getElementById("modal").style.display = "flex";
-  document.getElementById("modalContent").src = src;
+  modal.style.display="flex";
+  modalImg.src=src;
 }
 
-document.getElementById("modal").addEventListener("click", () => {
-  document.getElementById("modal").style.display = "none";
-});
-
-/* DRAG */
-const dropZone = document.getElementById("dropZone");
-
-dropZone.addEventListener("dragover", e=>{
-  e.preventDefault();
-  dropZone.style.background = "#eee";
-});
-
-dropZone.addEventListener("dragleave", ()=>{
-  dropZone.style.background = "white";
-});
-
-dropZone.addEventListener("drop", e=>{
-  e.preventDefault();
-  dropZone.style.background = "white";
-  handleUpload(e.dataTransfer.files[0]);
-});
+modal.onclick = ()=> modal.style.display="none";
 </script>
 
 </body>
