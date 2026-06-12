@@ -10,6 +10,7 @@
 body { font-family: Arial; margin:0; background:#f5f5f5; }
 header { background:#111; color:#fff; padding:20px; }
 .container { max-width:900px; margin:auto; padding:20px; }
+
 .card { background:#fff; padding:15px; margin-bottom:15px; border-radius:10px; }
 
 input, button, select {
@@ -25,33 +26,38 @@ button {
   cursor:pointer;
 }
 
-ul { padding-left:0; list-style:none; }
-
-li {
-  background:#fafafa;
-  padding:10px;
-  margin-bottom:10px;
-  border-radius:8px;
-}
-
-img {
-  max-width:200px;
-  display:block;
-  margin-top:8px;
-  border-radius:6px;
-}
-
-.deleteBtn {
-  margin-top:8px;
-  background:red;
-}
-
 #dropZone {
   border:2px dashed #999;
   padding:20px;
   text-align:center;
   margin-bottom:10px;
   background:white;
+}
+
+#fileList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  padding:0;
+  list-style:none;
+}
+
+.fileCard {
+  background:white;
+  padding:10px;
+  border-radius:10px;
+  box-shadow:0 2px 6px rgba(0,0,0,0.1);
+}
+
+.fileCard img {
+  max-width:100%;
+  border-radius:6px;
+  margin-top:5px;
+}
+
+.deleteBtn {
+  margin-top:8px;
+  background:red;
 }
 </style>
 </head>
@@ -93,11 +99,11 @@ img {
 <input type="file" id="fileInput">
 <button onclick="uploadFile()">Upload</button>
 
-<h2>Files</h2>
-
+<h2>Search</h2>
 <input id="searchInput" placeholder="파일 검색..." oninput="loadFiles()">
 
-<ul id="fileList"></ul>
+<h2>Files</h2>
+<div id="fileList"></div>
 
 </div>
 
@@ -117,10 +123,8 @@ window.addEventListener("load", async () => {
 
   if(data.session){
     currentUser = data.session.user;
-
     document.getElementById("loginBox").style.display = "none";
     document.getElementById("appBox").style.display = "block";
-
     loadProjects();
   }
 });
@@ -230,7 +234,7 @@ function uploadFile(){
   handleUpload(file);
 }
 
-/* LOAD FILES + SEARCH */
+/* LOAD FILES */
 async function loadFiles(){
   const project = document.getElementById("projectSelect").value;
   const search = document.getElementById("searchInput").value?.toLowerCase() || "";
@@ -250,23 +254,22 @@ async function loadFiles(){
   list.innerHTML = "";
 
   filtered.forEach(f=>{
-    const li = document.createElement("li");
+    const div = document.createElement("div");
+    div.className = "fileCard";
 
-    li.innerHTML = `
-      <strong>${f.name}</strong><br/>
+    div.innerHTML = `
+      <strong>${f.name}</strong>
       <img src="https://otzbtdgiawgvekpnnlgn.supabase.co/storage/v1/object/public/caperbean-files/${f.url}" />
       <button class="deleteBtn" onclick="deleteFile('${f.id}', '${f.url}')">삭제</button>
     `;
 
-    list.appendChild(li);
+    list.appendChild(div);
   });
 }
 
 /* DELETE */
 async function deleteFile(id, path){
-  await client.from("files")
-    .delete()
-    .eq("id", id);
+  await client.from("files").delete().eq("id", id);
 
   await client.storage
     .from("caperbean-files")
